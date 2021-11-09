@@ -11,6 +11,7 @@ HTTPBuilder *HTTPBuilder::setHostName(std::string hostName) {
 
 HTTPBuilder *HTTPBuilder::setFilePath(std::string filePath) {
     HTTPBuilder::filePath = filePath;
+
     return this;
 }
 
@@ -36,15 +37,15 @@ std::string HTTPBuilder::buildRequest() {
 
     httpRequest += HOST_NAME_FIELD;
     httpRequest += " " + hostName;
-    httpRequest += ":"+portNumber;
+    httpRequest += ":" + portNumber;
     httpRequest += END_OF_LINE;
 
     if (HTTPBuilder::methodType == "POST") {
-        if (!HTTPBuilder::checkFile()) {
+        if (!IO::checkFile(filePath)) {
             std::cout << "Err : File Not Found\n";
             return "";
         }
-        myFileStream.open(filePath);
+        io->open(filePath, true);
         httpRequest += CONTENT_LENGTH_FIELD;
         httpRequest += " " + std::to_string(contentLength);
         httpRequest += END_OF_LINE;
@@ -64,20 +65,20 @@ std::string HTTPBuilder::buildResponse(bool response) {
     std::string httpRequest = "";
 
     httpRequest += DEFAULT_HTTP_VERSION;
-    httpRequest += END_OF_LINE;
+    httpRequest += " ";
 
-    if(response) {
+    if (response) {
         httpRequest += DEFAULT_HTTP_OK;
-    }else
+    } else
         httpRequest += DEFAULT_HTTP_NOT_FOUND;
     httpRequest += END_OF_LINE;
-
-    if (HTTPBuilder::methodType == "POST") {
+/*
+    if (HTTPBuilder::methodType == GET_REQUEST) {
         if (!HTTPBuilder::checkFile()) {
             std::cout << "Err : File Not Found\n";
             return "";
         }
-        myFileStream.open(filePath);
+        io->open(filePath,true);
         httpRequest += CONTENT_LENGTH_FIELD;
         httpRequest += " " + std::to_string(contentLength);
         httpRequest += END_OF_LINE;
@@ -89,46 +90,21 @@ std::string HTTPBuilder::buildResponse(bool response) {
         httpRequest += END_OF_LINE;
     }
 
-    httpRequest += END_OF_LINE;
+    httpRequest += END_OF_LINE;*/
+
     return httpRequest;
 }
 
-char *HTTPBuilder::readFile(char *buf, int bufSize) {
-    if (myFileStream.is_open()) {
-        if (myFileStream.read(buf, bufSize)) {
-            return buf;
-        } else if (myFileStream.gcount() > 0) {
-            if (myFileStream.gcount() != bufSize)
-                buf[myFileStream.gcount()] = '\0';
-            return buf;
-        } else {
-            myFileStream.close();
-            return nullptr;
-        }
-    } else return nullptr;
-}
 
 HTTPBuilder::HTTPBuilder() {
     contentLength = 0;
     fileData = "";
-    methodType =GET_REQUEST;
+    methodType = GET_REQUEST;
     hostName = DEFAULT_HOST;
     portNumber = DEFAULT_PORT;
+    io = new IO();
 }
 
-bool HTTPBuilder::checkFile() {
-    std::ifstream myfile;
-    myfile.open(filePath);
-    if (myfile.is_open()) {
-        std::string lineStr;
-        while (getline(myfile, lineStr)) {
-            contentLength += lineStr.size();
-        }
-    } else
-        return false;
-    myfile.close();
-    return true;
-}
 
 const std::string &HTTPBuilder::getMethodType() const {
     return methodType;

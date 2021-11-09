@@ -20,11 +20,17 @@ private :
     HANDLE listenerThread ;
     DWORD dwThreadIdArray[50];
     Parser *parser ;
+    IO *io;
     int init();
     DWORD threadListen(Server server);
     void threadHandleSocket(SOCKET clientSocket);
     std::string recvHeader(SOCKET clientSocket);
     bool checkHeaderEnd(std::string &header);
+    bool recvData(SOCKET clientSocket,HTTPBuilder *builder);
+    void sendResponse(bool success,SOCKET clientSocket,HTTPBuilder*httpBuilder);
+    std::string buildBody(SOCKET socket, HTTPBuilder *pBuilder);
+    std::string buildHeader(HTTPBuilder *pBuilder);
+    int send(SOCKET socket,const char* data,int sendbuflen);
 public :
     HANDLE requestThread [50];
     Server();

@@ -11,7 +11,7 @@
 #include <string>
 #include <fstream>
 #include<sstream>
-
+#include "IO.h"
 #define HOST_NAME_FIELD "Host:"
 #define CONTENT_LENGTH_FIELD "Content-Length:"
 #define CONTENT_TYPE_FIELD "Content-Type:"
@@ -23,7 +23,6 @@ private :
 #define DEFAULT_HTTP_OK "200 OK"
 #define DEFAULT_HTTP_NOT_FOUND "404 Not Found"
 #define END_OF_LINE "\r\n"
-    std::ifstream myFileStream;
     std::string methodType ;
     std::string hostName ;
     std::string filePath;
@@ -33,7 +32,7 @@ private :
     std::string contentType;
     bool isRequestBool;
     int contentLength;
-    bool checkFile();
+    IO *io ;
 public :
 #define GET_REQUEST "GET"
 #define POST_REQUEST "POST"
@@ -72,7 +71,7 @@ public :
 
     std::string buildRequest();
 
-    char * readFile(char * buf ,int bufSize);
+
 
     std::string buildResponse(bool response);
 };

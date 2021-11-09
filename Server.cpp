@@ -8,6 +8,7 @@
 Server::Server() {
     init();
     parser = new Parser();
+    io = new IO();
 }
 
 int Server::init() {
@@ -88,6 +89,7 @@ DWORD WINAPI threadDecodeHTTPRequest(/*LPVOID lpParameter*/ SOCKET clientSocket)
         }
     }
     std::cout << "received : \n" << receivedRequest << std::endl;
+    return 0;
 }
 
 DWORD Server::threadListen(Server server) {
@@ -143,8 +145,27 @@ void Server::threadHandleSocket(SOCKET clientSocket) {
     //TODO timeout timer here
     std::string header = Server::recvHeader(clientSocket);
     std::cout << "header :" << std::endl << header << std::endl;
+    HTTPBuilder *httpBuilder = Parser::parseHeader(header);
 
-    HTTPBuilder httpBuilder = Parser::parseHeader(header);
+    bool success;
+    if (httpBuilder->isRequest() && httpBuilder->getMethodType() == POST_REQUEST) {
+        success = Server::recvData(clientSocket, httpBuilder);
+    } else if (httpBuilder->isRequest() && httpBuilder->getMethodType() == GET_REQUEST) {
+        std::string filepath = httpBuilder->getFilePath();
+        int contentLength = IO::checkFile(filepath);
+        if (contentLength == -1)success = false;
+        else {
+            success = true;
+            httpBuilder->setContentLength(contentLength);
+            int fileExtentionIdx = filepath.find_last_of(".");
+            if (std::string::npos != fileExtentionIdx) {
+                std::string MIMEType = IO::GetMimeType(filepath.substr(fileExtentionIdx));
+                httpBuilder->setContentType(MIMEType);
+            }
+        }
+    }
+
+    sendResponse(success, clientSocket, httpBuilder);
 }
 
 std::string Server::recvHeader(SOCKET clientSocket) {
@@ -179,3 +200,94 @@ bool Server::checkHeaderEnd(std::string &header) {
     }
 }
 
+bool Server::recvData(SOCKET clientSocket, HTTPBuilder *builder) {
+    int contentLength = builder->getContentLength(), iResult = 0, recvbuflen = std::min(DEFAULT_BUFLEN, contentLength);
+    std::string data;
+    io->open(builder->getFilePath(), false);
+    while (contentLength > 0) {
+        char recvbuf[recvbuflen + 1];
+        recvbuf[recvbuflen] = '\0';
+        iResult = recv(clientSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0) {
+            //printf("Bytes received: %d\n", iResult);
+            contentLength -= iResult;
+            recvbuflen = std::min(DEFAULT_BUFLEN, contentLength);
+            if (!io->writeFile(recvbuf, iResult))return false;
+            std::cout << recvbuf;
+        } else if (iResult == 0) {
+            std::cout << "Connection closing...\n";
+            return false;
+        } else {
+            std::cout << "recv failed with error: " << WSAGetLastError() << std::endl;
+            closesocket(clientSocket);
+            WSACleanup();
+            return false;
+        }
+    }
+    io->close(false);
+    return true;
+}
+
+void Server::sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBuilder) {
+    std::string response = httpBuilder->buildResponse(success);
+    //Server::send(clientSocket, response.c_str(), response.size());
+    if (success && httpBuilder->getMethodType() == GET_REQUEST) {
+        std::string header = Server::buildHeader(httpBuilder);
+        //Server::send(clientSocket, header.c_str(), header.size());
+        response += header;
+        response += buildBody(clientSocket, httpBuilder);
+    }
+    
+    response += END_OF_LINE;
+    response += END_OF_LINE;
+    std::cout << "response :" << std::endl;
+    std::cout << response << std::endl;
+    Server::send(clientSocket, response.c_str(), response.size());
+}
+
+std::string Server::buildBody(SOCKET clientSocket, HTTPBuilder *httpBuilder) {
+    std::string body;
+    int result, contentLength = httpBuilder->getContentLength(), sendbuflen = std::min(contentLength, DEFAULT_BUFLEN);
+    char buf[sendbuflen + 1];
+    io->open(httpBuilder->getFilePath(), true);
+    while (contentLength > 0 && (sendbuflen = io->readFile(buf, sendbuflen)) > 0) {
+        body += buf;
+        //result = Server::send(clientSocket, buf, sendbuflen);
+        contentLength -= sendbuflen;
+        /*if (result == SOCKET_ERROR) {
+            return "";
+        }*/
+    }
+    return body;
+}
+
+
+int Server::send(SOCKET clientSocket, const char *data, int size) {
+    int iResult = WSAAPI::send(clientSocket, data, size, 0);
+    if (iResult == SOCKET_ERROR) {
+        printf("send failed with error: %d\n", WSAGetLastError());
+        closesocket(clientSocket);
+        WSACleanup();
+        return iResult;
+    }
+    return iResult;
+}
+
+std::string Server::buildHeader(HTTPBuilder *httpBuilder) {
+    std::string header;
+    header += CONTENT_TYPE_FIELD;
+    header += " " + httpBuilder->getContentType();
+    header += END_OF_LINE;
+
+    header += CONTENT_LENGTH_FIELD;
+    header += " " + Parser::intToStr(httpBuilder->getContentLength());
+    header += END_OF_LINE;
+
+    header+=HOST_NAME_FIELD;
+    header += " " +httpBuilder->getHostName() +":" + httpBuilder->getPortNumber();
+    header += END_OF_LINE;
+
+    header += END_OF_LINE;
+
+    return header;
+}

@@ -17,11 +17,14 @@ private :
 public :
     HTTPBuilder * parseClientCmd(std::string cmd);
 
-    static HTTPBuilder parseHeader(const std::string& header);
+    static HTTPBuilder *parseHeader(const std::string& header);
 
     static void parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuilder *httpBuilder);
 
     static int strIntoInt(std::basic_string<char> &basicString);
+
+    static std::string intToStr(int num);
+
 };
 
 

@@ -55,12 +55,12 @@ std::vector<std::string> Parser::split(std::string str, std::string delim) {
     return resultArr;
 }
 
-HTTPBuilder Parser::parseHeader(const std::string &header) {
+HTTPBuilder *Parser::parseHeader(const std::string &header) {
     HTTPBuilder *httpBuilder = new HTTPBuilder();
     std::vector<std::string> headerLines = Parser::split(header, END_OF_LINE);
     Parser::parseResponseLine(headerLines[0], httpBuilder);
     Parser::parseHeaderContents(headerLines, httpBuilder);
-    return HTTPBuilder();
+    return httpBuilder;
 }
 
 void Parser::parseResponseLine(std::string &responseLine, HTTPBuilder *httpBuilder) {
@@ -80,7 +80,6 @@ void Parser::parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuil
     for (int i = 1; i < headerLines.size(); i++) {
         std::vector<std::string> splittedLine = split(headerLines[i], " ");
         headerMap.insert(std::make_pair(splittedLine[0], splittedLine[1]));
-        std::cout << splittedLine[0] << " " << splittedLine[1] << std::endl;
     }
 
     if (headerMap.count(CONTENT_LENGTH_FIELD))
@@ -101,4 +100,11 @@ int Parser::strIntoInt(std::string &str) {
     int i;
     ss >> i;
     return i;
+}
+std::string Parser::intToStr(int num) {
+    std::string str ;
+    std::stringstream ss;
+    ss << num;
+    ss >> str;
+    return str;
 }
