@@ -10,14 +10,18 @@
 #include <vector>
 #include "HTTPBuilder.h"
 #include <map>
+
 class Parser {
 private :
-    static std::vector<std::string> split(std::string str, std::string delim);
-    static void parseResponseLine(std::basic_string<char> &basicString, HTTPBuilder *httpBuilder);
-public :
-    HTTPBuilder * parseClientCmd(std::string cmd);
 
-    static HTTPBuilder *parseHeader(const std::string& header);
+public :
+    static HTTPBuilder *parseClientCmd(std::string cmd);
+
+    static HTTPBuilder *parseHeader(const std::string &header);
+
+    static void parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder);
+
+    static std::vector<std::string> split(std::string str, std::string delim);
 
     static void parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuilder *httpBuilder);
 

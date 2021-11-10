@@ -4,65 +4,46 @@
 
 #include "HTTPBuilder.h"
 
-HTTPBuilder *HTTPBuilder::setHostName(std::string hostName) {
-    HTTPBuilder::hostName = hostName;
-    return this;
+HTTPBuilder::HTTPBuilder() {
+    contentLength = 0;
+    fileData = "";
+    methodType = GET_REQUEST;
+    hostName = DEFAULT_HOST;
+    portNumber = DEFAULT_PORT;
 }
+std::string HTTPBuilder::buildHeader(bool containsBody) {
+    std::string header;
 
-HTTPBuilder *HTTPBuilder::setFilePath(std::string filePath) {
-    HTTPBuilder::filePath = filePath;
+    if(containsBody) {
+        header += CONTENT_TYPE_FIELD;
+        header += " " + getContentType();
+        header += END_OF_LINE;
 
-    return this;
-}
-
-HTTPBuilder *HTTPBuilder::setPortNumber(std::string portNumber) {
-    HTTPBuilder::portNumber = portNumber;
-    return this;
-}
-
-HTTPBuilder *HTTPBuilder::setMethodType(std::string methodType) {
-    HTTPBuilder::methodType = methodType;
-    return this;
-}
-
-std::string HTTPBuilder::buildRequest() {
-    std::string httpRequest;
-
-
-    httpRequest += methodType + " /";
-
-    httpRequest += filePath + " ";
-    httpRequest += DEFAULT_HTTP_VERSION;
-    httpRequest += END_OF_LINE;
-
-    httpRequest += HOST_NAME_FIELD;
-    httpRequest += " " + hostName;
-    httpRequest += ":" + portNumber;
-    httpRequest += END_OF_LINE;
-
-    if (HTTPBuilder::methodType == "POST") {
-        if (!IO::checkFile(filePath)) {
-            std::cout << "Err : File Not Found\n";
-            return "";
-        }
-        io->open(filePath, true);
-        httpRequest += CONTENT_LENGTH_FIELD;
-        httpRequest += " " + std::to_string(contentLength);
-        httpRequest += END_OF_LINE;
-
-        httpRequest += CONTENT_TYPE_FIELD;
-        int fileExtentionIdx = filePath.find_last_of(".");
-        if (std::string::npos != fileExtentionIdx)
-            httpRequest += " " + filePath.substr(fileExtentionIdx + 1);
-        httpRequest += END_OF_LINE;
+        header += CONTENT_LENGTH_FIELD;
+        header += " " + HTTPBuilder::intToStr(getContentLength());
+        header += END_OF_LINE;
     }
+    header+=HOST_NAME_FIELD;
+    header += " " +getHostName() +":" + getPortNumber();
+    header += END_OF_LINE;
 
-    httpRequest += END_OF_LINE;
-    return httpRequest;
+    header += END_OF_LINE;
+
+    return header;
+}
+
+std::string HTTPBuilder::buildRequestLine() {
+    std::string requestLine ;
+
+    requestLine+=getMethodType() + " ";
+    requestLine +=getFilePath()+ " ";
+    requestLine +=DEFAULT_HTTP_VERSION;
+    requestLine+=END_OF_LINE;
+    return requestLine;
 }
 
 std::string HTTPBuilder::buildResponse(bool response) {
-    std::string httpRequest = "";
+    std::string httpRequest;
 
     httpRequest += DEFAULT_HTTP_VERSION;
     httpRequest += " ";
@@ -72,39 +53,43 @@ std::string HTTPBuilder::buildResponse(bool response) {
     } else
         httpRequest += DEFAULT_HTTP_NOT_FOUND;
     httpRequest += END_OF_LINE;
-/*
-    if (HTTPBuilder::methodType == GET_REQUEST) {
-        if (!HTTPBuilder::checkFile()) {
-            std::cout << "Err : File Not Found\n";
-            return "";
-        }
-        io->open(filePath,true);
-        httpRequest += CONTENT_LENGTH_FIELD;
-        httpRequest += " " + std::to_string(contentLength);
-        httpRequest += END_OF_LINE;
-
-        httpRequest += CONTENT_TYPE_FIELD;
-        int fileExtentionIdx = filePath.find_last_of(".");
-        if (std::string::npos != fileExtentionIdx)
-            httpRequest += " " + filePath.substr(fileExtentionIdx + 1);
-        httpRequest += END_OF_LINE;
-    }
-
-    httpRequest += END_OF_LINE;*/
-
     return httpRequest;
 }
 
 
-HTTPBuilder::HTTPBuilder() {
-    contentLength = 0;
-    fileData = "";
-    methodType = GET_REQUEST;
-    hostName = DEFAULT_HOST;
-    portNumber = DEFAULT_PORT;
-    io = new IO();
+
+int HTTPBuilder::buildBody(IO *io,std::string &body) {
+    //std::string body;
+    //int remainingContentLength = this->getContentLength(), sendbuflen = std::min(remainingContentLength, DEFAULT_BUFLEN);
+    int sendbuflen =  DEFAULT_BUFLEN;
+    char buf[sendbuflen + 1];
+    int result = io->open(this->getFilePath(), true);
+    if(result==FILE_NOT_FOUND)return result;
+    std::stringstream ss;
+    while ((sendbuflen = io->readFile(buf, sendbuflen)) > 0) {
+        //ss.write(buf,sendbuflen);
+        //ss>>body;
+        body += std::string(buf, sendbuflen);
+        //remainingContentLength -= sendbuflen;
+    }
+    return STATUS_OK;
 }
 
+
+void HTTPBuilder::setHostName(std::string hostName) {
+    HTTPBuilder::hostName = hostName;
+}
+void HTTPBuilder::setFilePath(std::string filePath) {
+    HTTPBuilder::filepath = filePath;
+}
+
+void HTTPBuilder::setPortNumber(std::string portNumber) {
+    HTTPBuilder::portNumber = portNumber;
+}
+
+void HTTPBuilder::setMethodType(std::string methodType) {
+    HTTPBuilder::methodType = methodType;
+}
 
 const std::string &HTTPBuilder::getMethodType() const {
     return methodType;
@@ -115,7 +100,7 @@ const std::string &HTTPBuilder::getHostName() const {
 }
 
 const std::string &HTTPBuilder::getFilePath() const {
-    return filePath;
+    return filepath;
 }
 
 const std::string &HTTPBuilder::getPortNumber() const {
@@ -152,4 +137,12 @@ const std::string &HTTPBuilder::getContentType() const {
 
 void HTTPBuilder::setContentType(const std::string &contentType) {
     HTTPBuilder::contentType = contentType;
+}
+
+std::string HTTPBuilder::intToStr(int num) {
+    std::string str;
+    std::stringstream ss;
+    ss << num;
+    ss >> str;
+    return str;
 }

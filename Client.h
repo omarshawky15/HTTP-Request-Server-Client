@@ -10,18 +10,23 @@
 #include <ws2tcpip.h>
 #include <iostream>
 #include "HTTPBuilder.h"
+#include "Parser.h"
+#include "ServerClientUtils.h"
 class Client {
 #define DEFAULT_PORT "80"
 private :
-    SOCKET connectSocket = INVALID_SOCKET;
+    SOCKET serverSocket = INVALID_SOCKET;
+    IO *io;
     int init();
+    std::string createRequest(HTTPBuilder*httpBuilder,std::string &request);
+    int receiveResponse(std::string &methodType);
+    int createSocket(HTTPBuilder *builder);
+    void shutdown() ;
 public :
     Client();
-    int sendRequest(HTTPBuilder *builder);
-    void get(HTTPBuilder *builder);
-    int send (const std:: string& data) ;
-    void post(HTTPBuilder *pBuilder);
-    void shutdown() ;
+
+    int handleClientCmd(std::string &cmd);
+
 };
 
 

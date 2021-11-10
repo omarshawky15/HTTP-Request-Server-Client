@@ -12,6 +12,8 @@
 #include <fstream>
 #include<sstream>
 #include "IO.h"
+
+#define DEFAULT_BUFLEN 512
 #define HOST_NAME_FIELD "Host:"
 #define CONTENT_LENGTH_FIELD "Content-Length:"
 #define CONTENT_TYPE_FIELD "Content-Type:"
@@ -25,25 +27,25 @@ private :
 #define END_OF_LINE "\r\n"
     std::string methodType ;
     std::string hostName ;
-    std::string filePath;
+    std::string filepath;
     std::string portNumber;
     std::string fileData;
     std::string responseCode;
     std::string contentType;
     bool isRequestBool;
     int contentLength;
-    IO *io ;
+    static std::string intToStr(int num);
 public :
 #define GET_REQUEST "GET"
 #define POST_REQUEST "POST"
     HTTPBuilder();
-    HTTPBuilder* setMethodType(std::string methodType);
+     void setMethodType(std::string methodType);
 
-    HTTPBuilder* setHostName(std::string hostName);
+   void setHostName(std::string hostName);
 
-    HTTPBuilder* setFilePath(std::string filePath);
+    void setFilePath(std::string filePath);
 
-    HTTPBuilder* setPortNumber(std::string portNumber);
+    void setPortNumber(std::string portNumber);
 
     const std::string &getResponseCode() const;
 
@@ -69,11 +71,14 @@ public :
 
     void setContentType(const std::string &contentType);
 
-    std::string buildRequest();
-
-
+    std::string buildHeader(bool containsBody);
 
     std::string buildResponse(bool response);
+
+    std::string buildRequestLine();
+
+    int buildBody(IO *io,std::string &body);
+
 };
 
 

@@ -10,8 +10,8 @@
 #include <iostream>
 #include <windows.h>
 #include "parser.h"
+#include "ServerClientUtils.h"
 #define DEFAULT_PORT "80"
-#define DEFAULT_BUFLEN 512
 #define MAX_SERVER_CON 50
 
 class Server {
@@ -19,18 +19,18 @@ private :
     SOCKET listenSocket = INVALID_SOCKET;
     HANDLE listenerThread ;
     DWORD dwThreadIdArray[50];
-    Parser *parser ;
     IO *io;
     int init();
     DWORD threadListen(Server server);
     void threadHandleSocket(SOCKET clientSocket);
-    std::string recvHeader(SOCKET clientSocket);
+    /*std::string recvHeader(SOCKET clientSocket);
     bool checkHeaderEnd(std::string &header);
-    bool recvData(SOCKET clientSocket,HTTPBuilder *builder);
+    bool recvData(SOCKET clientSocket,HTTPBuilder *builder);*/
     void sendResponse(bool success,SOCKET clientSocket,HTTPBuilder*httpBuilder);
-    std::string buildBody(SOCKET socket, HTTPBuilder *pBuilder);
-    std::string buildHeader(HTTPBuilder *pBuilder);
+    //std::string buildBody(HTTPBuilder *pBuilder);
+    //std::string buildHeader(HTTPBuilder *pBuilder);
     int send(SOCKET socket,const char* data,int sendbuflen);
+    int receiveRequest(SOCKET clientSocket,HTTPBuilder* newBuilder);
 public :
     HANDLE requestThread [50];
     Server();

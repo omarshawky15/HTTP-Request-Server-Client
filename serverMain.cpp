@@ -9,7 +9,5 @@ using namespace  std ;
 int main() {
     Server *server = new Server();
     server->listen();
-    while(true);
-
     return 0;
 }

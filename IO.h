@@ -16,14 +16,16 @@ private :
     std::ifstream ifstream;
     std::ofstream ofstream;
 public :
+#define FILE_NOT_FOUND -1
+#define STATUS_OK 0
     int readFile(char *buf, int bufSize);
     bool writeFile(char *buf, int bufSize);
 
-    void open(std::string filepath, bool read);
+    int open(std::string filepath, bool read);
 
     void close(bool read);
 
-    static int checkFile(std::string filepath);
+    //int checkFile(std::string filepath);
 
     static std::string GetMimeType(const std::string &szExtension);
 };

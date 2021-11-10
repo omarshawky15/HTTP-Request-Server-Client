@@ -19,30 +19,17 @@ HTTPBuilder *Parser::parseClientCmd(std::string cmd) {
         std::cout << "Err : Method Not Clear\n";
         return nullptr;
     }
-    return builder->setFilePath(parsedStr[1])
-            ->setHostName(parsedStr[2])
-            ->setPortNumber(parsedStr[3]);
+    builder->setIsRequest(true);
+    builder->setFilePath(parsedStr[1]);
+    builder->setHostName(parsedStr[2]);
+    builder->setPortNumber(parsedStr[3]);
+    return builder;
 }
 
 std::vector<std::string> Parser::split(std::string str, std::string delim) {
     std::vector<std::string> resultArr;
-    /*int idx =0 ;
-    do {
-        if (str[idx] == ' ') {
-            while (str[idx]  == ' ')idx++;
-            if (str[idx] == 0)break;
-        }
-        int begin = idx;
 
-        while (str[idx] != delim && *str)
-            str++;
-        std::string resultStr(begin,str);
-        if(!resultStr.empty())
-        resultArr.emplace_back(resultStr);
-    } while (0 != *str++);*/
-
-
-    size_t pos = 0;
+    size_t pos ;
     std::string token;
     while ((pos = str.find(delim)) != std::string::npos) {
         token = str.substr(0, pos);
@@ -63,10 +50,11 @@ HTTPBuilder *Parser::parseHeader(const std::string &header) {
     return httpBuilder;
 }
 
-void Parser::parseResponseLine(std::string &responseLine, HTTPBuilder *httpBuilder) {
-    std::vector<std::string> responseLineArr = split(responseLine, " ");
+void Parser::parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder) {
+    std::vector<std::string> responseLineArr = split(RRLine, " ");
     if (responseLineArr[0] == DEFAULT_HTTP_VERSION) {
-        httpBuilder->setResponseCode(responseLineArr[1] + " " + responseLineArr[2]);
+        std::vector<std::string> statusCode = split(responseLineArr[2],END_OF_LINE);
+        httpBuilder->setResponseCode(responseLineArr[1] + " " + statusCode[0]);
         httpBuilder->setIsRequest(false);
     } else {
         httpBuilder->setMethodType(responseLineArr[0]);
@@ -89,7 +77,8 @@ void Parser::parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuil
     if (headerMap.count(HOST_NAME_FIELD)) {
         std::vector<std::string> splittedHost = split(headerMap[HOST_NAME_FIELD], ":");
         httpBuilder->setHostName(splittedHost[0]);
-        httpBuilder->setPortNumber(splittedHost[1]);
+        if(splittedHost.size()>1)httpBuilder->setPortNumber(splittedHost[1]);
+        else httpBuilder->setPortNumber(DEFAULT_PORT);
     }
 
 }
@@ -101,8 +90,9 @@ int Parser::strIntoInt(std::string &str) {
     ss >> i;
     return i;
 }
+
 std::string Parser::intToStr(int num) {
-    std::string str ;
+    std::string str;
     std::stringstream ss;
     ss << num;
     ss >> str;

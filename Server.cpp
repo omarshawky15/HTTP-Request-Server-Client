@@ -7,7 +7,6 @@
 
 Server::Server() {
     init();
-    parser = new Parser();
     io = new IO();
 }
 
@@ -58,37 +57,6 @@ int Server::init() {
         return 4;
     }
     freeaddrinfo(result);
-    return 0;
-}
-
-SOCKET Server::getSocket() {
-    return listenSocket;
-}
-
-DWORD WINAPI threadDecodeHTTPRequest(/*LPVOID lpParameter*/ SOCKET clientSocket) {
-    std::cout << "decoding...\n";
-    //SOCKET clientSocket = *((SOCKET *) lpParameter);
-    int iResult;
-    std::string receivedRequest;
-    while (true) {
-        char recvbuf[DEFAULT_BUFLEN];
-        int recvbuflen = DEFAULT_BUFLEN;
-        iResult = recv(clientSocket, recvbuf, recvbuflen, 0);
-        if (iResult > 0) {
-            printf("Bytes received: %d\n", iResult);
-            receivedRequest += recvbuf;
-            std::cout << "received : \n" << recvbuf;
-        } else if (iResult == 0) {
-            std::cout << "Connection closing...\n";
-            break;
-        } else {
-            std::cout << "recv failed with error: " << WSAGetLastError() << std::endl;
-            closesocket(clientSocket);
-            WSACleanup();
-            break;
-        }
-    }
-    std::cout << "received : \n" << receivedRequest << std::endl;
     return 0;
 }
 
@@ -143,31 +111,42 @@ int Server::listen() {
 
 void Server::threadHandleSocket(SOCKET clientSocket) {
     //TODO timeout timer here
-    std::string header = Server::recvHeader(clientSocket);
-    std::cout << "header :" << std::endl << header << std::endl;
-    HTTPBuilder *httpBuilder = Parser::parseHeader(header);
+    while (true) {
 
-    bool success;
-    if (httpBuilder->isRequest() && httpBuilder->getMethodType() == POST_REQUEST) {
-        success = Server::recvData(clientSocket, httpBuilder);
-    } else if (httpBuilder->isRequest() && httpBuilder->getMethodType() == GET_REQUEST) {
-        std::string filepath = httpBuilder->getFilePath();
-        int contentLength = IO::checkFile(filepath);
-        if (contentLength == -1)success = false;
-        else {
-            success = true;
-            httpBuilder->setContentLength(contentLength);
-            int fileExtentionIdx = filepath.find_last_of(".");
-            if (std::string::npos != fileExtentionIdx) {
-                std::string MIMEType = IO::GetMimeType(filepath.substr(fileExtentionIdx));
-                httpBuilder->setContentType(MIMEType);
-            }
-        }
+        std::string response;
+        int result;
+        HTTPBuilder *requestBuilder = new HTTPBuilder();
+        result = receiveRequest(clientSocket, requestBuilder);
+        if (result == 1) {
+            break;
+        } else
+            sendResponse(result == 0, clientSocket, requestBuilder);
     }
-
-    sendResponse(success, clientSocket, httpBuilder);
 }
 
+int Server::receiveRequest(SOCKET clientSocket, HTTPBuilder *newBuilder) {
+    std::string request;
+    std::string delim = END_OF_LINE;
+    std::string RRLine;
+    int result = ServerClientUtils::recvWithDelim(clientSocket, delim, RRLine);
+    if (result !=0)return result;
+    request += RRLine;
+    Parser::parseResponseLine(RRLine, newBuilder);
+    delim += END_OF_LINE;
+    std::string header ;
+    result = ServerClientUtils::recvWithDelim(clientSocket, delim,header);
+    if (result !=0)return result;
+    request += header;
+    std::vector<std::string> headerLines = Parser::split(header, END_OF_LINE);
+    Parser::parseHeaderContents(headerLines, newBuilder);
+    if (newBuilder->getMethodType() == POST_REQUEST) {
+        result = ServerClientUtils::recvData(clientSocket, newBuilder, io, request);
+    }
+    std::cout << "\nrequest :\n" << request;
+    return result;
+}
+
+/*
 std::string Server::recvHeader(SOCKET clientSocket) {
     std::string header;
     int recvbuflen = 1, iResult;
@@ -195,7 +174,6 @@ std::string Server::recvHeader(SOCKET clientSocket) {
 bool Server::checkHeaderEnd(std::string &header) {
     if (header.size() < 4)return false;
     else {
-        //std :: cout << header.substr(header.size() - 4, 4)  <<std::endl;
         return header.substr(header.size() - 4, 4) == "\r\n\r\n";
     }
 }
@@ -225,42 +203,53 @@ bool Server::recvData(SOCKET clientSocket, HTTPBuilder *builder) {
         }
     }
     io->close(false);
+    char extraEOF[4];
+    recv(clientSocket, extraEOF, 6, 0);
     return true;
 }
-
+*/
 void Server::sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBuilder) {
-    std::string response = httpBuilder->buildResponse(success);
-    //Server::send(clientSocket, response.c_str(), response.size());
+    std::string body ;
     if (success && httpBuilder->getMethodType() == GET_REQUEST) {
-        std::string header = Server::buildHeader(httpBuilder);
-        //Server::send(clientSocket, header.c_str(), header.size());
-        response += header;
-        response += buildBody(clientSocket, httpBuilder);
+        std::string filepath = httpBuilder->getFilePath();
+        int result =httpBuilder->buildBody(io,body);
+        if (result == FILE_NOT_FOUND)success= false ;
+        else {
+            httpBuilder->setContentLength(body.size());
+            httpBuilder->setContentType(IO::GetMimeType(filepath));
+        }
     }
-    
-    response += END_OF_LINE;
-    response += END_OF_LINE;
-    std::cout << "response :" << std::endl;
-    std::cout << response << std::endl;
+    std::string response = httpBuilder->buildResponse(success);
+    if (success && httpBuilder->getMethodType() == GET_REQUEST) {
+        std::string header = httpBuilder->buildHeader(true);
+        response += header;
+        //int result= httpBuilder->buildBody(io,body);
+        response+=body;
+    } else {
+        response += END_OF_LINE;
+    }
+
+    /* response += END_OF_LINE;
+     response += END_OF_LINE;
+     response += END_OF_LINE;*/
+    std::cout << "\nresponse :\n";
+    std::cout << response;
     Server::send(clientSocket, response.c_str(), response.size());
 }
 
-std::string Server::buildBody(SOCKET clientSocket, HTTPBuilder *httpBuilder) {
+/*
+std::string Server::buildBody(HTTPBuilder *httpBuilder) {
     std::string body;
-    int result, contentLength = httpBuilder->getContentLength(), sendbuflen = std::min(contentLength, DEFAULT_BUFLEN);
+    int contentLength = httpBuilder->getContentLength(), sendbuflen = std::min(contentLength, DEFAULT_BUFLEN);
     char buf[sendbuflen + 1];
     io->open(httpBuilder->getFilePath(), true);
     while (contentLength > 0 && (sendbuflen = io->readFile(buf, sendbuflen)) > 0) {
         body += buf;
-        //result = Server::send(clientSocket, buf, sendbuflen);
         contentLength -= sendbuflen;
-        /*if (result == SOCKET_ERROR) {
-            return "";
-        }*/
     }
     return body;
 }
-
+*/
 
 int Server::send(SOCKET clientSocket, const char *data, int size) {
     int iResult = WSAAPI::send(clientSocket, data, size, 0);
@@ -273,6 +262,7 @@ int Server::send(SOCKET clientSocket, const char *data, int size) {
     return iResult;
 }
 
+/*
 std::string Server::buildHeader(HTTPBuilder *httpBuilder) {
     std::string header;
     header += CONTENT_TYPE_FIELD;
@@ -290,4 +280,8 @@ std::string Server::buildHeader(HTTPBuilder *httpBuilder) {
     header += END_OF_LINE;
 
     return header;
+}
+*/
+SOCKET Server::getSocket() {
+    return listenSocket;
 }

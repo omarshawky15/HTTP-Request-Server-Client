@@ -10,19 +10,23 @@ int IO::readFile(char *buf, int bufSize) {
         if (ifstream.gcount()) {
             buf[ifstream.gcount()] = '\0';
             return ifstream.gcount();
-        }else {
+        } else {
             ifstream.close();
             return 0;
         }
     } else return -1;
 }
 
-void IO::open(std::string filepath, bool read) {
-    if(filepath[0] =='/')filepath = filepath.substr(1,filepath.size()-1);
+int IO::open(std::string filepath, bool read) {
+    if (filepath[0] == '/')filepath = filepath.substr(1, filepath.size() - 1);
     if (read) {
-        ifstream.open(filepath);
+        ifstream.open(filepath, std::ios::binary);
+        if (ifstream.is_open())return STATUS_OK;
+        else return FILE_NOT_FOUND;
     } else {
-            ofstream.open(filepath);
+        ofstream.open(filepath, std::ios::binary);
+        if (ofstream.is_open())return STATUS_OK;
+        else return FILE_NOT_FOUND;
     }
 }
 
@@ -38,45 +42,50 @@ bool IO::writeFile(char *buf, int bufSize) {
 
 }
 
-int IO::checkFile(std::string filepath) {
+/*int IO::checkFile(std::string filepath) {
     //std::replace( filepath.begin(), filepath.end(), '/', '_');
-    if(filepath[0] =='/')filepath = filepath.substr(1,filepath.size()-1);
-    int contentLength = 0 ;
-    std::ifstream tempIfstream;
-    tempIfstream.open(filepath);
-    if (tempIfstream.is_open()) {
+    if (filepath[0] == '/')filepath = filepath.substr(1, filepath.size() - 1);
+    int contentLength = 0;
+    //std::ifstream tempIfstream;
+    //tempIfstream.open(filepath);
+    this->open(filepath, true);
+    if (ifstream.is_open()) {
         std::string lineStr;
-        while (getline(tempIfstream, lineStr)) {
+        while (getline(ifstream, lineStr)) {
             contentLength += lineStr.size();
         }
     } else
         return -1;
-    tempIfstream.close();
+    //tempIfstream.close();
+    this->close(true);
     return contentLength;
 }
+*/
 void IO::close(bool read) {
-    if(read)ifstream.close();
+    if (read)ifstream.close();
     else ofstream.close();
 }
 
-std ::string IO::GetMimeType(const std ::string &szExtension)
-{
+std::string IO::GetMimeType(const std::string &filepath) {
+    std::string szExtension;
+    int fileExtentionIdx = filepath.find_last_of(".");
+    if (std::string::npos != fileExtentionIdx) {
+        szExtension = filepath.substr(fileExtentionIdx);
+    } else return "text/plain";
     // return mime type for extension
     HKEY hKey = NULL;
-    std ::string szResult = "application/unknown";
+    std::string szResult = "application/unknown";
 
     // open registry key
     if (RegOpenKeyEx(HKEY_CLASSES_ROOT, szExtension.c_str(),
-                     0, KEY_READ, &hKey) == ERROR_SUCCESS)
-    {
+                     0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         // define buffer
         char szBuffer[256] = {0};
         DWORD dwBuffSize = sizeof(szBuffer);
 
         // get content type
         if (RegQueryValueEx(hKey, "Content Type", NULL, NULL,
-                            (LPBYTE)szBuffer, &dwBuffSize) == ERROR_SUCCESS)
-        {
+                            (LPBYTE) szBuffer, &dwBuffSize) == ERROR_SUCCESS) {
             // success
             szResult = szBuffer;
         }
