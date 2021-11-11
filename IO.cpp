@@ -24,7 +24,7 @@ int IO::open(std::string filepath, bool read) {
         if (ifstream.is_open())return STATUS_OK;
         else return FILE_NOT_FOUND;
     } else {
-        ofstream.open(filepath, std::ios::binary);
+        ofstream.open("t_"+filepath, std::ios::binary);
         if (ofstream.is_open())return STATUS_OK;
         else return FILE_NOT_FOUND;
     }
@@ -42,25 +42,6 @@ bool IO::writeFile(char *buf, int bufSize) {
 
 }
 
-/*int IO::checkFile(std::string filepath) {
-    //std::replace( filepath.begin(), filepath.end(), '/', '_');
-    if (filepath[0] == '/')filepath = filepath.substr(1, filepath.size() - 1);
-    int contentLength = 0;
-    //std::ifstream tempIfstream;
-    //tempIfstream.open(filepath);
-    this->open(filepath, true);
-    if (ifstream.is_open()) {
-        std::string lineStr;
-        while (getline(ifstream, lineStr)) {
-            contentLength += lineStr.size();
-        }
-    } else
-        return -1;
-    //tempIfstream.close();
-    this->close(true);
-    return contentLength;
-}
-*/
 void IO::close(bool read) {
     if (read)ifstream.close();
     else ofstream.close();

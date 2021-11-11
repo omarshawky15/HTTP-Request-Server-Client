@@ -14,13 +14,19 @@ class ServerClientUtils {
 public :
 #define CONNECTION_CLOSED 1
 #define RECEIVE_FAILED 2
-    static int recvWithDelim(SOCKET socket, std::string &delim,std::string &header);
+#define CONNECTION_TIMEOUT 3
+    static int recvWithDelim(SOCKET socket, std::string &delim,std::string &header,int timeout);
 
     static bool checkRecvEnd(std::string &header, std::string &delim);
 
     static int send(SOCKET socket, const char *data, int size);
 
-    static bool recvData(SOCKET socket, HTTPBuilder *builder, IO *io,std::string &data);
+    static int recvData(SOCKET socket, HTTPBuilder *builder, IO *io,std::string &data,int timeout);
+
+    static bool checkTimeout(SOCKET socket, int timeout);
+
+    static void shutdown(SOCKET socket);
+
 };
 
 

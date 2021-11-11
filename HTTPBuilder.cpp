@@ -11,6 +11,7 @@ HTTPBuilder::HTTPBuilder() {
     hostName = DEFAULT_HOST;
     portNumber = DEFAULT_PORT;
 }
+// builds header lines from current data stored in this object
 std::string HTTPBuilder::buildHeader(bool containsBody) {
     std::string header;
 
@@ -31,7 +32,7 @@ std::string HTTPBuilder::buildHeader(bool containsBody) {
 
     return header;
 }
-
+// build first line of a request based on methodType value
 std::string HTTPBuilder::buildRequestLine() {
     std::string requestLine ;
 
@@ -41,7 +42,7 @@ std::string HTTPBuilder::buildRequestLine() {
     requestLine+=END_OF_LINE;
     return requestLine;
 }
-
+// build first line of response based on success boolean passed as a parameter to indicate if it was 200 or 404
 std::string HTTPBuilder::buildResponse(bool response) {
     std::string httpRequest;
 
@@ -57,7 +58,7 @@ std::string HTTPBuilder::buildResponse(bool response) {
 }
 
 
-
+// builds body of HTTP based of filepath and return a result code if it exists or not (FILE_NOT_FOUND)
 int HTTPBuilder::buildBody(IO *io,std::string &body) {
     //std::string body;
     //int remainingContentLength = this->getContentLength(), sendbuflen = std::min(remainingContentLength, DEFAULT_BUFLEN);

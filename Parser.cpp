@@ -3,15 +3,15 @@
 //
 
 #include "Parser.h"
-
+// parses clients commands from input.txt
 HTTPBuilder *Parser::parseClientCmd(std::string cmd) {
     HTTPBuilder *builder = new HTTPBuilder();
     std::vector<std::string> parsedStr = Parser::split(cmd, " ");
-    if (parsedStr.size() > 4 || parsedStr.size() < 3) {
+    if (parsedStr.size() > 4 || parsedStr.size() < 2) {
         std::cout << "Err : Command not clear\n";
         return nullptr;
     }
-    if (parsedStr.size() == 3)parsedStr.emplace_back("");
+    //if (parsedStr.size() == 3)parsedStr.emplace_back("");
     if (parsedStr[0] == "client_get")builder->setMethodType(GET_REQUEST);
     else if (parsedStr[0] == "client_post") {
         builder->setMethodType(POST_REQUEST);
@@ -21,11 +21,11 @@ HTTPBuilder *Parser::parseClientCmd(std::string cmd) {
     }
     builder->setIsRequest(true);
     builder->setFilePath(parsedStr[1]);
-    builder->setHostName(parsedStr[2]);
-    builder->setPortNumber(parsedStr[3]);
+    if(parsedStr.size()>2)builder->setHostName(parsedStr[2]);
+    if(parsedStr.size()>3)builder->setPortNumber(parsedStr[3]);
     return builder;
 }
-
+// splits a string into multiple strings with delim as seperator
 std::vector<std::string> Parser::split(std::string str, std::string delim) {
     std::vector<std::string> resultArr;
 
@@ -41,7 +41,7 @@ std::vector<std::string> Parser::split(std::string str, std::string delim) {
         resultArr.emplace_back(str);
     return resultArr;
 }
-
+// parse header received from recv and split it to multiple lines then store each field in HTTP object
 HTTPBuilder *Parser::parseHeader(const std::string &header) {
     HTTPBuilder *httpBuilder = new HTTPBuilder();
     std::vector<std::string> headerLines = Parser::split(header, END_OF_LINE);
@@ -49,7 +49,7 @@ HTTPBuilder *Parser::parseHeader(const std::string &header) {
     Parser::parseHeaderContents(headerLines, httpBuilder);
     return httpBuilder;
 }
-
+// parse first line of header to indicate wether it's a response or request and which type of request received
 void Parser::parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder) {
     std::vector<std::string> responseLineArr = split(RRLine, " ");
     if (responseLineArr[0] == DEFAULT_HTTP_VERSION) {
@@ -62,6 +62,8 @@ void Parser::parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder) {
         httpBuilder->setIsRequest(true);
     }
 }
+// split header into key :value using a " " delimeter and store it in map
+// , then for the values I'm searching for, check it in map and if it exists store in HTTP object
 
 void Parser::parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuilder *httpBuilder) {
     std::map<std::string, std::string> headerMap;

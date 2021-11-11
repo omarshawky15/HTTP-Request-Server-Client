@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iostream>
+#include <string>
 #include "HTTPBuilder.h"
 #include "Parser.h"
 #include "ServerClientUtils.h"
@@ -18,10 +19,9 @@ private :
     SOCKET serverSocket = INVALID_SOCKET;
     IO *io;
     int init();
-    std::string createRequest(HTTPBuilder*httpBuilder,std::string &request);
-    int receiveResponse(std::string &methodType);
+    int createRequest(HTTPBuilder*httpBuilder,std::string &request);
+    int receiveResponse(const std::string &methodType);
     int createSocket(HTTPBuilder *builder);
-    void shutdown() ;
 public :
     Client();
 

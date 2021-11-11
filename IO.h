@@ -25,8 +25,6 @@ public :
 
     void close(bool read);
 
-    //int checkFile(std::string filepath);
-
     static std::string GetMimeType(const std::string &szExtension);
 };
 
