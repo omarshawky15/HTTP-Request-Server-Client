@@ -75,10 +75,8 @@ int main(int argc, char *argv[]) {
         inputFilepath = argv[1];
         multipleClientsOneRequest(inputFilepath);
     }else {
-        inputFilepath = "input_1.txt";
-        //multipleClientsOneRequest(inputFilepath);
-        oneClientsMultipleRequests(hostname,portNumber,inputFilepath);
-
+        inputFilepath = "input_3.txt";
+        multipleClientsOneRequest(inputFilepath);
     }
     return 0;
 }

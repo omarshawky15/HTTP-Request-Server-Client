@@ -11,7 +11,12 @@ HTTPBuilder::HTTPBuilder() {
     hostName = DEFAULT_HOST;
     portNumber = DEFAULT_PORT;
 }
-// builds header lines from current data stored in this object
+/**
+   *  @param  containsBody  boolean to define if it should contain content length/type fields or not .
+   *  @return string of header built
+   *
+   *  builds header lines from current data stored in this object
+  */
 std::string HTTPBuilder::buildHeader(bool containsBody) {
     std::string header;
 
@@ -32,7 +37,11 @@ std::string HTTPBuilder::buildHeader(bool containsBody) {
 
     return header;
 }
-// build first line of a request based on methodType value
+/**
+   *  @return string of request's first line
+   *
+   *  build first line of a request based on methodType value
+  */
 std::string HTTPBuilder::buildRequestLine() {
     std::string requestLine ;
 
@@ -42,7 +51,12 @@ std::string HTTPBuilder::buildRequestLine() {
     requestLine+=END_OF_LINE;
     return requestLine;
 }
-// build first line of response based on success boolean passed as a parameter to indicate if it was 200 or 404
+/**
+   *  @param  response  boolean to define if it should a 200 or 404 respsonse.
+   *  @return string of response built
+   *
+   *  build first line of response based on success boolean passed as a parameter to indicate if it was 200 or 404
+  */
 std::string HTTPBuilder::buildResponse(bool response) {
     std::string httpRequest;
 
@@ -57,8 +71,12 @@ std::string HTTPBuilder::buildResponse(bool response) {
     return httpRequest;
 }
 
-
-// builds body of HTTP based of filepath and return a result code if it exists or not (FILE_NOT_FOUND)
+/**
+   *  @param  body  string to store body string in.
+   *  @return error code to define whether the file was found at filepath or not
+   *
+   *  builds body of HTTP based of filepath and return a result code if it exists or not (FILE_NOT_FOUND)
+  */
 int HTTPBuilder::buildBody(IO *io,std::string &body) {
     int sendbuflen =  DEFAULT_BUFLEN;
     char buf[sendbuflen + 1];

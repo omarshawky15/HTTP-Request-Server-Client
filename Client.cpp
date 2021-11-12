@@ -7,6 +7,11 @@
 //
 // Created by omara on 11/7/2021.
 //
+/**
+   *  @return error code to indicate if initializing the library was successful or not
+   *
+   *  Initializes Winsock
+  */
 // Initializes Winsock
 int Client::init() {
     int iResult;
@@ -24,7 +29,12 @@ Client::Client() {
     init();
     io = new IO();
 }
-
+/**
+   *  @param  httpBuilder HTTP object to carry necessary data for request.
+   *  @return error code to indicate if sending the request was successful or not
+   *
+   *  sends request to the server
+  */
 int Client::handleHTTPRequest(HTTPBuilder *httpBuilder) {
     std::string request;
     int result = Client::createRequest(httpBuilder, request); //create a request based on the information in HTTP object
@@ -32,17 +42,21 @@ int Client::handleHTTPRequest(HTTPBuilder *httpBuilder) {
     //print the request it's about to send
     std::string printRequest = "\n\n" + IO::getTime() + "request :\n" + request;
     std::cout << printRequest;
-    //std::cout<<"\nrequest : \n" <<request; //print the request it's about to send
     result = ServerClientUtils::send(serverSocket, request.c_str(), request.size());
     if (result == SOCKET_ERROR) {
         std::cout << "Connection closed with the server" << std::endl;
         return CONNECTION_CLOSED;
     }
-    result = Client::receiveResponse(httpBuilder);//receive response (200/404) from server
+    //receive response (200/404) from server
+    result = Client::receiveResponse(httpBuilder);
     return result;
 }
-
-//receive response (200/404) from server and parse it
+/**
+   *  @param  oldBuilder HTTP object to carry necessary data from the request that was sent before.
+   *  @return error code to indicate if receiving the requeest was successful or not
+   *
+   *  receive response (200/404) from server and parse it
+  */
 int Client::receiveResponse(HTTPBuilder *oldBuilder) {
     std::string response;
     HTTPBuilder *newBuilder = new HTTPBuilder();
@@ -77,8 +91,13 @@ int Client::receiveResponse(HTTPBuilder *oldBuilder) {
     //std::cout << "\nresponse :" << std::endl << response;
     return result;
 }
-
-//creates request and store it in request string based on HTTP object contents
+/**
+   *  @param  request  string of the request that will be sent.
+   *  @param  httpBuilder HTTP object to carry necessary data for the request.
+   *  @return error code to indicate if receiving the request was successful or not
+   *
+   *  creates request and store it in request string based on HTTP object contents
+  */
 int Client::createRequest(HTTPBuilder *httpBuilder, std::string &request) {
     std::string body;
     // if request is POST then try to read the body (file) to check wether it exists or not and get its content length a
@@ -103,8 +122,12 @@ int Client::createRequest(HTTPBuilder *httpBuilder, std::string &request) {
 
     return STATUS_OK;
 }
-
-//creates client socket based on host and port number stored in HTTP object
+/**
+   *  @param  builder HTTP object to carry necessary data for creating the socket such as hostname and port number.
+   *  @return error code to indicate if receiving the request was successful or not
+   *
+   *  creates client socket based on host and port number stored in HTTP object
+  */
 int Client::createSocket(HTTPBuilder *builder) {
     int iResult;
     struct addrinfo *result = nullptr, hints{};
@@ -120,7 +143,7 @@ int Client::createSocket(HTTPBuilder *builder) {
                                   &hints, &result);
     if (iResult != 0) {
         printf("getaddrinfo failed: %d\n", iResult);
-        WSACleanup();
+      //  WSACleanup();
         return 1;
     }
     for (auto ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
@@ -130,7 +153,7 @@ int Client::createSocket(HTTPBuilder *builder) {
                               ptr->ai_protocol);
         if (serverSocket == INVALID_SOCKET) {
             printf("socket failed with error: %ld\n", WSAGetLastError());
-            WSACleanup();
+         //   WSACleanup();
             continue;
         }
         // Connect to server.
@@ -147,7 +170,11 @@ int Client::createSocket(HTTPBuilder *builder) {
 
     return 0;
 }
-
+/**
+   *  @param  httpBuilder HTTP object that carries filepath to be changed.
+   *
+   *  adds an c_ prefix to files written by the client to help defining them during testing
+  */
 void Client::setFilepathForClients(HTTPBuilder*httpBuilder){
     std::string filepath = httpBuilder->getFilePath();
     int fileNameIdx = filepath.find_last_of("/");
@@ -156,7 +183,9 @@ void Client::setFilepathForClients(HTTPBuilder*httpBuilder){
         httpBuilder->setFilePath(filepath);
     }
 }
-// shutdown client socket
+/**
+   *  shutdowns client socket
+  */
 void Client::shutdown(){
     ServerClientUtils::shutdown(serverSocket,SD_SEND); // shutdown client socket
 }

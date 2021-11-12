@@ -3,7 +3,12 @@
 //
 
 #include "Parser.h"
-// parses clients commands from input.txt
+/**
+   *  @param  cmd  command read from input.txt to be parsed.
+   *  @return HTTP object build based on the client command that contains hostname, port number and filepath
+   *
+   *  parses clients commands from input.txt and builds HTTP object from it
+  */
 HTTPBuilder *Parser::parseClientCmd(std::string cmd) {
     HTTPBuilder *builder = new HTTPBuilder();
     std::vector<std::string> parsedStr = Parser::split(cmd, " ");
@@ -25,7 +30,13 @@ HTTPBuilder *Parser::parseClientCmd(std::string cmd) {
     if(parsedStr.size()>3)builder->setPortNumber(parsedStr[3]);
     return builder;
 }
-// splits a string into multiple strings with delim as seperator
+/**
+   *  @param  str  string to be split.
+   *  @param  delim  delimiter to state where to split two strings.
+   *  @return vector of strings seperated after splitting str
+   *
+   *  splits a string into multiple strings with delim as seperator
+  */
 std::vector<std::string> Parser::split(std::string str, std::string delim) {
     std::vector<std::string> resultArr;
 
@@ -41,7 +52,12 @@ std::vector<std::string> Parser::split(std::string str, std::string delim) {
         resultArr.emplace_back(str);
     return resultArr;
 }
-// parse header received from recv and split it to multiple lines then store each field in HTTP object
+/**
+   *  @param  header  string to be split.
+   *  @return HTTP object that contains data extracted from passed header
+   *
+   *  parse header received from recv and split it to multiple lines then store each field in HTTP object
+  */
 HTTPBuilder *Parser::parseHeader(const std::string &header) {
     HTTPBuilder *httpBuilder = new HTTPBuilder();
     std::vector<std::string> headerLines = Parser::split(header, END_OF_LINE);
@@ -49,7 +65,13 @@ HTTPBuilder *Parser::parseHeader(const std::string &header) {
     Parser::parseHeaderContents(headerLines, httpBuilder);
     return httpBuilder;
 }
-// parse first line of header to indicate wether it's a response or request and which type of request received
+/**
+   *  @param  httpBuilder  HTTP object to store extracted information in.
+   *  @param  RRLine  string representing first line of header to be parsed.
+   *
+   *  parse first line of header to indicate wether it's a response or request and which type of request received
+  */
+//
 void Parser::parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder) {
     std::vector<std::string> responseLineArr = split(RRLine, " ");
     if (responseLineArr[0] == DEFAULT_HTTP_VERSION) {
@@ -62,8 +84,13 @@ void Parser::parseResponseLine(std::string &RRLine, HTTPBuilder *httpBuilder) {
         httpBuilder->setIsRequest(true);
     }
 }
-// split header into key :value using a " " delimeter and store it in map
-// , then for the values I'm searching for, check it in map and if it exists store in HTTP object
+/**
+   *  @param  headerLines  splitted lines of header each representing one field and its value.
+   *  @param  httpBuilder  HTTP object to store extracted data in.
+   *
+   *  split header into key :value using a " " delimeter and store it in map
+   *  then for the values I'm searching for, check it in map and if it exists store in HTTP object
+  */
 
 void Parser::parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuilder *httpBuilder) {
     std::map<std::string, std::string> headerMap;
@@ -84,7 +111,12 @@ void Parser::parseHeaderContents(std::vector<std::string> &headerLines, HTTPBuil
     }
 
 }
-
+/**
+   *  @param  str  string to be translated to int.
+   *  @return int integer representation of str
+   *
+   *  transforms str to integer number
+  */
 int Parser::strIntoInt(std::string &str) {
     std::stringstream ss;
     ss << str;
@@ -92,7 +124,12 @@ int Parser::strIntoInt(std::string &str) {
     ss >> i;
     return i;
 }
-
+/**
+   *  @param  num  number to be translated to string.
+   *  @return string string representation of integer.
+   *
+   *  transforms integer number to str
+  */
 std::string Parser::intToStr(int num) {
     std::string str;
     std::stringstream ss;
