@@ -60,18 +60,13 @@ std::string HTTPBuilder::buildResponse(bool response) {
 
 // builds body of HTTP based of filepath and return a result code if it exists or not (FILE_NOT_FOUND)
 int HTTPBuilder::buildBody(IO *io,std::string &body) {
-    //std::string body;
-    //int remainingContentLength = this->getContentLength(), sendbuflen = std::min(remainingContentLength, DEFAULT_BUFLEN);
     int sendbuflen =  DEFAULT_BUFLEN;
     char buf[sendbuflen + 1];
     int result = io->open(this->getFilePath(), true);
     if(result==FILE_NOT_FOUND)return result;
     std::stringstream ss;
     while ((sendbuflen = io->readFile(buf, sendbuflen)) > 0) {
-        //ss.write(buf,sendbuflen);
-        //ss>>body;
         body += std::string(buf, sendbuflen);
-        //remainingContentLength -= sendbuflen;
     }
     return STATUS_OK;
 }

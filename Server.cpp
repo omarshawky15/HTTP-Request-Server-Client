@@ -5,8 +5,8 @@
 #include "Server.h"
 
 
-Server::Server() {
-    Server::initSocket();
+Server::Server(std::string portNumber) {
+    Server::initSocket(portNumber);
     Server::initDS();
 
 }
@@ -21,7 +21,7 @@ void Server::initDS() {
 }
 
 //initializes listen socket
-int Server::initSocket() {
+int Server::initSocket(std::string portNumber) {
 
     int iResult;
     WSADATA wsaData;
@@ -42,7 +42,8 @@ int Server::initSocket() {
     hints.ai_flags = AI_PASSIVE;
 
     // Resolve the local address and port to be used by the server
-    iResult = getaddrinfo(DEFAULT_HOST, DEFAULT_PORT, &hints, &result);
+    //std::cout << portNumber << std::endl;
+    iResult = getaddrinfo(DEFAULT_HOST, portNumber.c_str(), &hints, &result);
     if (iResult != 0) {
         printf("getaddrinfo failed: %s\n", gai_strerrorA(iResult));
         WSACleanup();
@@ -75,17 +76,19 @@ int Server::initSocket() {
 // server ptr is passed and the client socket that the server should work on from withing the thread
 // while thread id is responsible for telling the thread which object to use
 void runClientThread(Server *hostServer, SOCKET clientSocket, int threadId) {
-    std::string starting = "\nthread (" + Parser::intToStr(threadId) + ") starting...\n";
-    std::string ending = "\nthread (" + Parser::intToStr(threadId) + ") ending...\n";
+    std::string starting = "\n" + IO::getTime() + "thread (" + Parser::intToStr(threadId) + ") starting...\n";
     std::cout << starting;
     hostServer->handleSocket(clientSocket, threadId);
+    std::string ending = "\n" + IO::getTime() + "thread (" + Parser::intToStr(threadId) + ") ending...\n";
     std::cout << ending;
+    hostServer->getResMutex()->lock();
     hostServer->getAvConc().push(threadId);
+    hostServer->getResMutex()->unlock();
 }
 
 // start listening on listen socket
 void Server::listen() {
-    if (WSAAPI::listen(listenSocket, 50) == SOCKET_ERROR) {
+    if (WSAAPI::listen(listenSocket, MAX_SERVER_CONC) == SOCKET_ERROR) {
         printf("Listen failed with error: %ld\n", WSAGetLastError());
         closesocket(listenSocket);
         WSACleanup();
@@ -98,32 +101,33 @@ void Server::listen() {
             clientSocket = accept(listenSocket, nullptr, nullptr);
             if (clientSocket == INVALID_SOCKET) {
                 printf("accept failed: %d\n", WSAGetLastError());
-                closesocket(listenSocket);
+                //closesocket(clientSocket);
                 WSACleanup();
-                return;
             } else {
                 // if a new client came and there's no free resources in the queue
                 // then shutdown the client socket and continue listening for new clients
                 // until a resource is available
                 if (avConc.size() == 0) {
                     std::cout << "\nServer is busy now...Rejecting Connection\n";
-                    shutdown(clientSocket);
+                    ServerClientUtils::shutdown(clientSocket,SD_RECEIVE);
                     continue;
                 }
                 // if resources available then pop a resource from queue and assign it to the new thread
                 std::cout << "\nConnection established\n";
+                resMutex.lock();
                 int threadId = avConc.front();
                 avConc.pop();
-                std::thread(runClientThread, this, clientSocket, threadId).detach();
+                resMutex.unlock();
+                //std::thread(runClientThread, this, clientSocket, threadId).detach();
+                handleSocket(clientSocket,threadId);
             }
         }
+    std::cout << "Server shutting down : " << WSAGetLastError() << "\n";
 }
 
 // main function to handle clients
 void Server::handleSocket(SOCKET clientSocket, int threadId) {
-    //TODO timeout timer here
     while (true) {
-
         std::string response;
         int result;
         HTTPBuilder *requestBuilder = new HTTPBuilder();
@@ -134,20 +138,22 @@ void Server::handleSocket(SOCKET clientSocket, int threadId) {
             std::cout << "\nConnection Timed-out...\nClosing Connection\n";
             break;
         } else if (sendResponse(result == 0, clientSocket, requestBuilder, threadId) == SOCKET_ERROR) { // send response
-            std::cout << "\nProblem with socket when sending response:" << WSAGetLastError()
+            std::cout << "\nProblem with socket when sending response: " << WSAGetLastError()
                       << "...\nClosing Connection\n";
             break;
         }
     }
     // if server reached here means that connection timed out so shutdown the clients socket
-    ServerClientUtils::shutdown(clientSocket);
+    ServerClientUtils::shutdown(clientSocket,SD_RECEIVE);
 }
+
 //receive request from client
 int Server::receiveRequest(SOCKET clientSocket, HTTPBuilder *newBuilder, int threadId) {
     std::string request;
     std::string delim = END_OF_LINE;
     std::string RRLine;
     int timeout = MAX_TIMEOUT / (MAX_SERVER_CONC - Server::getAvConc().size()); // calculate timeout
+    std::cout << "\ntest timeout now with "<<timeout<<" microseconds" << "\n";
     //receive first line of request to decide if it's GET or POST
     int result = ServerClientUtils::recvWithDelim(clientSocket, delim, RRLine, timeout);
     if (result != 0)return result;
@@ -156,6 +162,8 @@ int Server::receiveRequest(SOCKET clientSocket, HTTPBuilder *newBuilder, int thr
     delim += END_OF_LINE;
     std::string header;
     //receive header (based on the assumption of : if GET/POST there's always a header)
+    timeout = MAX_TIMEOUT / (MAX_SERVER_CONC - Server::getAvConc().size());
+    std::cout << "\ntest timeout now with "<<timeout<<" microseconds" << "\n";
     result = ServerClientUtils::recvWithDelim(clientSocket, delim, header, timeout);
     if (result != 0)return result;
     request += header;
@@ -164,12 +172,17 @@ int Server::receiveRequest(SOCKET clientSocket, HTTPBuilder *newBuilder, int thr
     Parser::parseHeaderContents(headerLines, newBuilder);
     //receive file content if the request is POST
     if (newBuilder->getMethodType() == POST_REQUEST) {
+        timeout = MAX_TIMEOUT / (MAX_SERVER_CONC - Server::getAvConc().size());
+        std::cout << "\ntest timeout now with "<<timeout<<" microseconds" << "\n";
+        setFilepathForServer(newBuilder);
         result = ServerClientUtils::recvData(clientSocket, newBuilder, io[threadId], request, timeout);//TODO change 5
     }
     //print request received
-    std::cout << "\nrequest :\n" << request;
+    std::string printRequest = "\n\n" + IO::getTime() + "request :\n" + request;
+    std::cout << printRequest;
     return result;
 }
+
 // send response to the client
 int Server::sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBuilder, int threadId) {
     std::string body;
@@ -180,7 +193,7 @@ int Server::sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBui
         if (result == FILE_NOT_FOUND)success = false;
         else {
             httpBuilder->setContentLength(body.size());
-            httpBuilder->setContentType(IO::GetMimeType(filepath));
+            httpBuilder->setContentType(IO::getMimeType(filepath));
         }
     }
     //start building first line of response based on whether GET/POST receiving succeded
@@ -193,25 +206,26 @@ int Server::sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBui
     } else {
         response += END_OF_LINE;
     }
-
-    std::cout << "\nresponse :\n";
-    std::cout << response;
+    std::string printResponse = "\n\n" + IO::getTime() + "response :\n" + response;
+    std::cout << printResponse;
     // send response to the client
-    return Server::send(clientSocket, response.c_str(), response.size());
+    return ServerClientUtils::send(clientSocket, response.c_str(), response.size());
 }
 
-// sending response function
-int Server::send(SOCKET clientSocket, const char *data, int size) {
-    int iResult = WSAAPI::send(clientSocket, data, size, 0);
-    if (iResult == SOCKET_ERROR) {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(clientSocket);
-        WSACleanup();
-        return iResult;
-    }
-    return iResult;
-}
 // gets queue of thread resources
 std::queue<int> &Server::getAvConc() {
     return avConc;
+}
+
+void Server::setFilepathForServer(HTTPBuilder *httpBuilder) {
+    std::string filepath = httpBuilder->getFilePath();
+    int fileNameIdx = filepath.find_last_of("/");
+    if (std::string::npos != fileNameIdx) {
+        filepath = filepath.substr(0, fileNameIdx + 1) + "s_" + filepath.substr(fileNameIdx + 1);
+        httpBuilder->setFilePath(filepath);
+    }
+}
+
+std::mutex *Server::getResMutex() {
+    return &resMutex;
 }

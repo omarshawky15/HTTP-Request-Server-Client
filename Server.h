@@ -10,6 +10,7 @@
 #include <iostream>
 #include <windows.h>
 #include <thread>
+#include <mutex>
 #include <utility>
 #include<queue>
 #include"Parser.h"
@@ -17,37 +18,35 @@
 
 #define DEFAULT_PORT "80"
 #define MAX_SERVER_CONC 50
-#define MAX_TIMEOUT 50
+#define MAX_TIMEOUT 5000
 class Server {
 private :
     SOCKET listenSocket = INVALID_SOCKET;
-    HANDLE listenerThread;
-    DWORD dwThreadIdArray[50];
     IO *io[MAX_SERVER_CONC];
     std::queue<int> avConc;
-    int initSocket();
+    std::mutex resMutex;
+    int initSocket(std::string portNumber);
     void initDS();
 
 
-    /*std::string recvHeader(SOCKET clientSocket);
-    bool checkHeaderEnd(std::string &header);
-    bool recvData(SOCKET clientSocket,HTTPBuilder *builder);*/
     int sendResponse(bool success, SOCKET clientSocket, HTTPBuilder *httpBuilder,int threadId);
 
-    //std::string buildBody(HTTPBuilder *pBuilder);
-    //std::string buildHeader(HTTPBuilder *pBuilder);
-    int send(SOCKET socket, const char *data, int sendbuflen);
+   // int send(SOCKET socket, const char *data, int sendbuflen);
 
     int receiveRequest(SOCKET clientSocket, HTTPBuilder *newBuilder,int threadId);
 
 public :
-    Server();
+    Server(std::string portNumber);
 
 
     void handleSocket(SOCKET clientSocket,int threadId);
     void listen();
 
     std::queue<int> &getAvConc();
+
+    void setFilepathForServer(HTTPBuilder *httpBuilder);
+
+    std::mutex *getResMutex();
 };
 
 

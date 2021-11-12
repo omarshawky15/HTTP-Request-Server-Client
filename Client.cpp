@@ -3,6 +3,7 @@
 //
 
 #include "Client.h"
+
 //
 // Created by omara on 11/7/2021.
 //
@@ -23,72 +24,73 @@ Client::Client() {
     init();
     io = new IO();
 }
-//parses cmds from input.txt and builds HTTP objects based on them
-int Client::handleClientCmd(std::string &cmd) {
-    std::string request;
-    HTTPBuilder *newBuilder = Parser::parseClientCmd(cmd); //build an HTTP object that contains filepath-host-port number-GET/POST
-    serverSocket = createSocket(newBuilder); //create socket for client based on host and port number in cmd
-    if (serverSocket == INVALID_SOCKET) {
-        std::cout << "Couldn't connect to host\n";
-        return CONNECTION_CLOSED;
-    }
 
-    int result = Client::createRequest(newBuilder,request); //create a request based on the information in HTTP object
-    if(result ==FILE_NOT_FOUND)return result;
-    std::cout<<"\nrequest : \n" <<request; //print the request it's about to send
-    result = ServerClientUtils::send(serverSocket,request.c_str(), request.size());
+int Client::handleHTTPRequest(HTTPBuilder *httpBuilder) {
+    std::string request;
+    int result = Client::createRequest(httpBuilder, request); //create a request based on the information in HTTP object
+    if (result == FILE_NOT_FOUND)return result;
+    //print the request it's about to send
+    std::string printRequest = "\n\n" + IO::getTime() + "request :\n" + request;
+    std::cout << printRequest;
+    //std::cout<<"\nrequest : \n" <<request; //print the request it's about to send
+    result = ServerClientUtils::send(serverSocket, request.c_str(), request.size());
     if (result == SOCKET_ERROR) {
         std::cout << "Connection closed with the server" << std::endl;
         return CONNECTION_CLOSED;
     }
-    result = Client::receiveResponse(newBuilder->getMethodType());//receive response (200/404) from server
-    ServerClientUtils::shutdown(serverSocket); // shutdown client socket
-    return result ;
+    result = Client::receiveResponse(httpBuilder);//receive response (200/404) from server
+    return result;
 }
+
 //receive response (200/404) from server and parse it
-int Client::receiveResponse(const std::string &methodType) {
-    std::string response ;
+int Client::receiveResponse(HTTPBuilder *oldBuilder) {
+    std::string response;
     HTTPBuilder *newBuilder = new HTTPBuilder();
     std::string delim = END_OF_LINE;
     std::string RRLine;
+    if(oldBuilder->getMethodType() ==POST_REQUEST)delim+=END_OF_LINE;
     //read first line of response that tells if the request was successful or not
-    int result = ServerClientUtils::recvWithDelim(serverSocket, delim,RRLine,0);
-    if(result!=0)return result;
-    response+=RRLine;
+    int result = ServerClientUtils::recvWithDelim(serverSocket, delim, RRLine, 0);
+    if (result != 0)return result;
+    response += RRLine;
     //parse first line that tells if the request was successful or not
     Parser::parseResponseLine(RRLine, newBuilder);
     //if the request was Get then start reading header nad file content
-    if (newBuilder->getResponseCode() == DEFAULT_HTTP_OK && methodType == GET_REQUEST) {
+    if (newBuilder->getResponseCode() == DEFAULT_HTTP_OK && oldBuilder->getMethodType() == GET_REQUEST) {
         delim += END_OF_LINE;
         std::string header;
         //receive header
-        result = ServerClientUtils::recvWithDelim(serverSocket, delim,header,0);
-        if(result!=0)return result;
-        response+=header;
+        result = ServerClientUtils::recvWithDelim(serverSocket, delim, header, 0);
+        if (result != 0)return result;
+        response += header;
         //parsing header contents and storing it in HTTP object
         std::vector<std::string> headerLines = Parser::split(header, END_OF_LINE);
         Parser::parseHeaderContents(headerLines, newBuilder);
-
+        newBuilder->setFilePath(oldBuilder->getFilePath());
+        Client::setFilepathForClients(newBuilder);
         //receive file contents based on what I read from header (content length/type)
-        ServerClientUtils::recvData(serverSocket, newBuilder, io,response,0);
+        ServerClientUtils::recvData(serverSocket, newBuilder, io, response, 0);
     }
     //print all I've received
-    std::cout << "\nresponse :" << std::endl << response;
+    std::string printResponse = "\n\n" + IO::getTime() + "response :\n" + response;
+    std::cout << printResponse;
+    //std::cout << "\nresponse :" << std::endl << response;
     return result;
 }
+
 //creates request and store it in request string based on HTTP object contents
-int Client::createRequest(HTTPBuilder *httpBuilder,std::string &request) {
+int Client::createRequest(HTTPBuilder *httpBuilder, std::string &request) {
     std::string body;
     // if request is POST then try to read the body (file) to check wether it exists or not and get its content length a
     if (httpBuilder->getMethodType() == POST_REQUEST) {
-        int result ;
-        result = httpBuilder->buildBody(io,body);
+        int result;
+        result = httpBuilder->buildBody(io, body);
         if (result == FILE_NOT_FOUND) {
             std::cout << "Couldn't find filepath" << std::endl;
-            return result ;
+            return result;
         } else {
             httpBuilder->setContentLength(body.size());
-            httpBuilder->setContentType(IO::GetMimeType(httpBuilder->getFilePath()));
+            httpBuilder->setContentType(IO::getMimeType(httpBuilder->getFilePath()));
         }
     }
 
@@ -96,11 +98,12 @@ int Client::createRequest(HTTPBuilder *httpBuilder,std::string &request) {
     request += httpBuilder->buildHeader(httpBuilder->getMethodType() == POST_REQUEST);
 
     if (httpBuilder->getMethodType() == POST_REQUEST) {
-        request+=body;
+        request += body;
     }
 
     return STATUS_OK;
 }
+
 //creates client socket based on host and port number stored in HTTP object
 int Client::createSocket(HTTPBuilder *builder) {
     int iResult;
@@ -112,7 +115,7 @@ int Client::createSocket(HTTPBuilder *builder) {
     hints.ai_protocol = IPPROTO_TCP;
 
     // Resolve the server address and port
-    iResult = WSAAPI::getaddrinfo(builder->getHostName().empty()? DEFAULT_HOST : builder->getHostName().c_str(),
+    iResult = WSAAPI::getaddrinfo(builder->getHostName().empty() ? DEFAULT_HOST : builder->getHostName().c_str(),
                                   builder->getPortNumber().empty() ? DEFAULT_PORT : builder->getPortNumber().c_str(),
                                   &hints, &result);
     if (iResult != 0) {
@@ -133,6 +136,7 @@ int Client::createSocket(HTTPBuilder *builder) {
         // Connect to server.
         iResult = WSAAPI::connect(serverSocket, ptr->ai_addr, (int) ptr->ai_addrlen);
         if (iResult == SOCKET_ERROR) {
+            printf("socket couldn't connect to server with error: %ld\n", WSAGetLastError());
             closesocket(serverSocket);
             serverSocket = INVALID_SOCKET;
             continue;
@@ -141,8 +145,18 @@ int Client::createSocket(HTTPBuilder *builder) {
     }
     freeaddrinfo(result);
 
-    return serverSocket;
+    return 0;
 }
 
-
-
+void Client::setFilepathForClients(HTTPBuilder*httpBuilder){
+    std::string filepath = httpBuilder->getFilePath();
+    int fileNameIdx = filepath.find_last_of("/");
+    if (std::string::npos != fileNameIdx) {
+        filepath = filepath.substr(0,fileNameIdx+1)+"c_"+filepath.substr(fileNameIdx+1);
+        httpBuilder->setFilePath(filepath);
+    }
+}
+// shutdown client socket
+void Client::shutdown(){
+    ServerClientUtils::shutdown(serverSocket,SD_SEND); // shutdown client socket
+}

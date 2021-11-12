@@ -15,6 +15,7 @@ public :
 #define CONNECTION_CLOSED 1
 #define RECEIVE_FAILED 2
 #define CONNECTION_TIMEOUT 3
+#define MICRO_SEC 1000
     static int recvWithDelim(SOCKET socket, std::string &delim,std::string &header,int timeout);
 
     static bool checkRecvEnd(std::string &header, std::string &delim);
@@ -25,7 +26,7 @@ public :
 
     static bool checkTimeout(SOCKET socket, int timeout);
 
-    static void shutdown(SOCKET socket);
+    static void shutdown(SOCKET socket,int how);
 
 };
 

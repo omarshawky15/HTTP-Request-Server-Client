@@ -46,8 +46,12 @@ void IO::close(bool read) {
     if (read)ifstream.close();
     else ofstream.close();
 }
-
-std::string IO::GetMimeType(const std::string &filepath) {
+std::string IO::getTime (){
+    auto start = std::chrono::system_clock::now();
+    std::time_t timeNow = std::chrono::system_clock::to_time_t(start);
+    return std::ctime(&timeNow) ;
+}
+std::string IO::getMimeType(const std::string &filepath) {
     std::string szExtension;
     int fileExtentionIdx = filepath.find_last_of(".");
     if (std::string::npos != fileExtentionIdx) {

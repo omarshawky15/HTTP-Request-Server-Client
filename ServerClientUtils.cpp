@@ -31,15 +31,15 @@ int ServerClientUtils::recvWithDelim(SOCKET socket, std::string &delim, std::str
 bool ServerClientUtils::checkRecvEnd(std::string &header, std::string &delim) {
     if (header.size() < delim.size())return false;
     else {
-        //std :: cout << header.substr(header.size() - 4, 4)  <<std::endl;
         return header.substr(header.size() - delim.size(), delim.size()) == delim;
     }
 }
 // function that forces timing out with select timeout
 bool ServerClientUtils::checkTimeout(SOCKET socket,int timeout){
     timeval connection_timer;
-    connection_timer.tv_sec = timeout;
-    connection_timer.tv_usec = 0;
+    connection_timer.tv_sec = timeout/MICRO_SEC;
+    connection_timer.tv_usec = timeout%MICRO_SEC;
+    //std ::cout << "seconds " << connection_timer.tv_sec <<"\nmicroseconds " << connection_timer.tv_usec<<"\n" ;
     fd_set fd_reader;
     FD_ZERO(&fd_reader);
 
@@ -47,8 +47,8 @@ bool ServerClientUtils::checkTimeout(SOCKET socket,int timeout){
     return WSAAPI::select(0, &fd_reader, nullptr, nullptr, &connection_timer)==0;
 }
 // send data to client
-int ServerClientUtils::send(SOCKET socket, const char *data, int size) {
-    int iResult = WSAAPI::send(socket, data, size, 0);
+int ServerClientUtils::send(SOCKET socket, const char *data, int data_size) {
+    int iResult = WSAAPI::send(socket, data, data_size, 0);
     if (iResult == SOCKET_ERROR) {
         printf("send failed with error: %d\n", WSAGetLastError());
         closesocket(socket);
@@ -67,7 +67,6 @@ int ServerClientUtils::recvData(SOCKET socket, HTTPBuilder *builder, IO *io, std
         if(timeout>0&&checkTimeout(socket,timeout))return CONNECTION_TIMEOUT ;
         iResult = recv(socket, recvbuf, recvbuflen, 0);
         if (iResult > 0) {
-            //printf("Bytes received: %d\n", iResult);
             contentLength -= iResult;
             recvbuflen = std::min(DEFAULT_BUFLEN, contentLength);
             if (!io->writeFile(recvbuf, iResult))return false;
@@ -86,11 +85,11 @@ int ServerClientUtils::recvData(SOCKET socket, HTTPBuilder *builder, IO *io, std
     return STATUS_OK;
 }
 // shutdown socket passed as parameter
-void ServerClientUtils::shutdown(SOCKET socket) {
-    int result = WSAAPI::shutdown(socket, SD_SEND);
+void ServerClientUtils::shutdown(SOCKET socket,int how) {
+    int result = WSAAPI::shutdown(socket, how);
     if (result == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
-        closesocket(socket);
+        //closesocket(socket);
         WSACleanup();
     }
 }

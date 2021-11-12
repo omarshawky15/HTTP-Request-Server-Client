@@ -10,6 +10,8 @@
 #include <fstream>
 #include <algorithm>
 #include <Windows.h>
+#include <chrono>
+#include <ctime>
 
 class IO {
 private :
@@ -25,7 +27,8 @@ public :
 
     void close(bool read);
 
-    static std::string GetMimeType(const std::string &szExtension);
+    static std::string getMimeType(const std::string &filepath);
+    static std::string getTime ();
 };
 
 

@@ -16,17 +16,18 @@
 class Client {
 #define DEFAULT_PORT "80"
 private :
-    SOCKET serverSocket = INVALID_SOCKET;
+    SOCKET serverSocket;
     IO *io;
     int init();
     int createRequest(HTTPBuilder*httpBuilder,std::string &request);
-    int receiveResponse(const std::string &methodType);
-    int createSocket(HTTPBuilder *builder);
+    int receiveResponse(HTTPBuilder *oldBuilder);
 public :
     Client();
-
-    int handleClientCmd(std::string &cmd);
-
+    int handleHTTPRequest(HTTPBuilder *httpBuilder);
+    //int handleClientCmd(std::string &cmd);
+    int createSocket(HTTPBuilder *builder);
+    void shutdown() ;
+    void setFilepathForClients(HTTPBuilder *httpBuilder);
 };
 
 
